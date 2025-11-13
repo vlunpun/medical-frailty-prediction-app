@@ -1,5 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import db from "../db";
+import { sendEmail, generateVerificationEmail } from "../email/send";
 
 export interface VerifyEmailRequest {
   token: string;
@@ -94,6 +95,12 @@ export const resendVerification = api<ResendVerificationRequest, ResendVerificat
           verification_token_expires = ${verificationExpiry}
       WHERE id = ${user.id}
     `;
+
+    await sendEmail({
+      to: email.toLowerCase(),
+      subject: "Verify Your Email - Medicaid Frailty Assessment",
+      html: generateVerificationEmail(email.toLowerCase(), verificationToken),
+    });
 
     return {
       message: "Verification email sent. Please check your inbox.",

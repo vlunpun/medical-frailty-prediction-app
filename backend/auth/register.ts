@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import db from "../db";
 import * as crypto from "crypto";
 import { promisify } from "util";
+import { sendEmail, generateVerificationEmail } from "../email/send";
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -61,10 +62,16 @@ export const register = api<RegisterRequest, RegisterResponse>(
       throw APIError.internal("Failed to create user account");
     }
 
+    await sendEmail({
+      to: user.email,
+      subject: "Verify Your Email - Medicaid Frailty Assessment",
+      html: generateVerificationEmail(user.email, verificationToken),
+    });
+
     return {
       id: user.id,
       email: user.email,
-      message: "Registration successful. Please verify your email address.",
+      message: "Registration successful. Please check your email to verify your account.",
     };
   }
 );

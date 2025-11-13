@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import db from "../db";
 import * as crypto from "crypto";
 import { promisify } from "util";
+import { sendEmail, generatePasswordResetEmail } from "../email/send";
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -41,6 +42,12 @@ export const requestPasswordReset = api<RequestPasswordResetRequest, RequestPass
           reset_token_expires = ${resetExpiry}
       WHERE id = ${user.id}
     `;
+
+    await sendEmail({
+      to: email.toLowerCase(),
+      subject: "Reset Your Password - Medicaid Frailty Assessment",
+      html: generatePasswordResetEmail(email.toLowerCase(), resetToken),
+    });
 
     return {
       message: "If an account exists with this email, a password reset link has been sent.",
