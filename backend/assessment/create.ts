@@ -1,6 +1,8 @@
 import { api } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import db from "../db";
+import { health_record } from "~encore/clients";
+import { predictFrailty } from "./ai_prediction";
 
 export interface CreateAssessmentRequest {
   chronicConditions: string[];
@@ -9,6 +11,7 @@ export interface CreateAssessmentRequest {
   mobilityLevel: "independent" | "limited" | "dependent";
   cognitiveStatus: "normal" | "mild_impairment" | "moderate_impairment" | "severe_impairment";
   activitiesDailyLivingScore: number;
+  includeHealthRecords?: boolean;
 }
 
 export interface Assessment {
@@ -23,18 +26,55 @@ export interface Assessment {
   activitiesDailyLivingScore: number;
   frailtyScore: number;
   riskLevel: string;
+  confidenceScore?: number;
+  contributingFactors?: Array<{
+    factor: string;
+    impact: number;
+    description: string;
+  }>;
+  insights?: string[];
+  warningFlags?: string[];
 }
 
-// Creates a new health assessment and calculates frailty score.
 export const create = api<CreateAssessmentRequest, Assessment>(
   { expose: true, method: "POST", path: "/assessments", auth: true },
   async (req) => {
     const auth = getAuthData()!;
     const userId = auth.userID;
-    const frailtyScore = calculateFrailtyScore(req);
-    const riskLevel = determineRiskLevel(frailtyScore);
+    
+    let healthRecords: any[] = [];
+    if (req.includeHealthRecords) {
+      const records = await health_record.list({});
+      healthRecords = records.records;
+    }
+    
+    const prediction = predictFrailty({
+      chronicConditions: req.chronicConditions,
+      medicationsCount: req.medicationsCount,
+      recentHospitalizations: req.recentHospitalizations,
+      mobilityLevel: req.mobilityLevel,
+      cognitiveStatus: req.cognitiveStatus,
+      activitiesDailyLivingScore: req.activitiesDailyLivingScore,
+      healthRecords,
+    });
 
-    const result = await db.queryRow<Assessment>`
+    const result = await db.queryRow<{
+      id: number;
+      user_id: string;
+      assessment_date: Date;
+      chronic_conditions: string[];
+      medications_count: number;
+      recent_hospitalizations: number;
+      mobility_level: string;
+      cognitive_status: string;
+      activities_daily_living_score: number;
+      frailty_score: number;
+      risk_level: string;
+      confidence_score: number | null;
+      contributing_factors: any;
+      insights: string[] | null;
+      warning_flags: string[] | null;
+    }>`
       INSERT INTO assessments (
         user_id,
         chronic_conditions,
@@ -44,7 +84,11 @@ export const create = api<CreateAssessmentRequest, Assessment>(
         cognitive_status,
         activities_daily_living_score,
         frailty_score,
-        risk_level
+        risk_level,
+        confidence_score,
+        contributing_factors,
+        insights,
+        warning_flags
       ) VALUES (
         ${userId},
         ${req.chronicConditions},
@@ -53,61 +97,51 @@ export const create = api<CreateAssessmentRequest, Assessment>(
         ${req.mobilityLevel},
         ${req.cognitiveStatus},
         ${req.activitiesDailyLivingScore},
-        ${frailtyScore},
-        ${riskLevel}
+        ${prediction.frailtyScore},
+        ${prediction.riskLevel},
+        ${prediction.confidenceScore},
+        ${JSON.stringify(prediction.contributingFactors)},
+        ${prediction.insights},
+        ${prediction.warningFlags}
       )
       RETURNING 
         id,
-        user_id as "userId",
-        assessment_date as "assessmentDate",
-        chronic_conditions as "chronicConditions",
-        medications_count as "medicationsCount",
-        recent_hospitalizations as "recentHospitalizations",
-        mobility_level as "mobilityLevel",
-        cognitive_status as "cognitiveStatus",
-        activities_daily_living_score as "activitiesDailyLivingScore",
-        frailty_score as "frailtyScore",
-        risk_level as "riskLevel"
+        user_id,
+        assessment_date,
+        chronic_conditions,
+        medications_count,
+        recent_hospitalizations,
+        mobility_level,
+        cognitive_status,
+        activities_daily_living_score,
+        frailty_score,
+        risk_level,
+        confidence_score,
+        contributing_factors,
+        insights,
+        warning_flags
     `;
 
     if (!result) {
       throw new Error("Failed to create assessment");
     }
 
-    return result;
+    return {
+      id: result.id,
+      userId: result.user_id,
+      assessmentDate: result.assessment_date,
+      chronicConditions: result.chronic_conditions,
+      medicationsCount: result.medications_count,
+      recentHospitalizations: result.recent_hospitalizations,
+      mobilityLevel: result.mobility_level,
+      cognitiveStatus: result.cognitive_status,
+      activitiesDailyLivingScore: result.activities_daily_living_score,
+      frailtyScore: result.frailty_score,
+      riskLevel: result.risk_level,
+      confidenceScore: result.confidence_score || undefined,
+      contributingFactors: result.contributing_factors || undefined,
+      insights: result.insights || undefined,
+      warningFlags: result.warning_flags || undefined,
+    };
   }
 );
-
-function calculateFrailtyScore(req: CreateAssessmentRequest): number {
-  let score = 0;
-
-  score += req.chronicConditions.length * 0.1;
-  score += req.medicationsCount * 0.05;
-  score += req.recentHospitalizations * 0.15;
-
-  const mobilityScores = {
-    independent: 0,
-    limited: 0.2,
-    dependent: 0.4,
-  };
-  score += mobilityScores[req.mobilityLevel];
-
-  const cognitiveScores = {
-    normal: 0,
-    mild_impairment: 0.1,
-    moderate_impairment: 0.2,
-    severe_impairment: 0.3,
-  };
-  score += cognitiveScores[req.cognitiveStatus];
-
-  const adlFactor = (10 - req.activitiesDailyLivingScore) * 0.05;
-  score += adlFactor;
-
-  return Math.min(score, 1.0);
-}
-
-function determineRiskLevel(frailtyScore: number): string {
-  if (frailtyScore >= 0.7) return "high";
-  if (frailtyScore >= 0.4) return "moderate";
-  return "low";
-}

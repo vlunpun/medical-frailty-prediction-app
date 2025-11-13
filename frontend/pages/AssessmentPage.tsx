@@ -37,6 +37,7 @@ export default function AssessmentPage() {
     mobilityLevel: "independent" as "independent" | "limited" | "dependent",
     cognitiveStatus: "normal" as "normal" | "mild_impairment" | "moderate_impairment" | "severe_impairment",
     activitiesDailyLivingScore: 10,
+    includeHealthRecords: true,
   });
 
   const createAssessment = useMutation({
@@ -202,6 +203,21 @@ export default function AssessmentPage() {
               />
             </div>
 
+            <div>
+              <div className="flex items-center space-x-2 mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                <Checkbox
+                  id="includeHealthRecords"
+                  checked={formData.includeHealthRecords}
+                  onCheckedChange={(checked) => 
+                    setFormData({ ...formData, includeHealthRecords: checked as boolean })
+                  }
+                />
+                <label htmlFor="includeHealthRecords" className="text-sm cursor-pointer">
+                  Include my health records for AI-enhanced prediction (recommended for more accurate results)
+                </label>
+              </div>
+            </div>
+
             <div className="flex gap-4 pt-4">
               <Button
                 type="button"
@@ -213,7 +229,7 @@ export default function AssessmentPage() {
               </Button>
               <Button type="submit" disabled={createAssessment.isPending} className="flex-1">
                 {createAssessment.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Complete Assessment
+                Complete AI Assessment
               </Button>
             </div>
           </Card>
