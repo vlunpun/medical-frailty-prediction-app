@@ -1,24 +1,33 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider } from "@clerk/clerk-react";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "./contexts/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import AssessmentPage from "./pages/AssessmentPage";
 import ReportPage from "./pages/ReportPage";
 import GuidancePage from "./pages/GuidancePage";
 import DashboardPage from "./pages/DashboardPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 
 const queryClient = new QueryClient();
-const PUBLISHABLE_KEY = "pk_test_bW9yYWwtYm9hLTUxLmNsZXJrLmFjY291bnRzLmRldiQ";
 
 export default function App() {
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
         <BrowserRouter>
           <div className="min-h-screen bg-background">
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/assessment" element={<AssessmentPage />} />
               <Route path="/reports" element={<ReportPage />} />
@@ -28,7 +37,7 @@ export default function App() {
             <Toaster />
           </div>
         </BrowserRouter>
-      </QueryClientProvider>
-    </ClerkProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

@@ -1,13 +1,14 @@
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth } from "../contexts/AuthContext";
 import backend from "~backend/client";
 
 export function useBackend() {
-  const { getToken, isSignedIn } = useAuth();
-  if (!isSignedIn) return backend;
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return backend;
+  
+  const token = localStorage.getItem("authToken");
+  if (!token) return backend;
+  
   return backend.with({
-    auth: async () => {
-      const token = await getToken();
-      return { authorization: `Bearer ${token}` };
-    },
+    auth: () => ({ authorization: `Bearer ${token}` }),
   });
 }

@@ -34,6 +34,8 @@ const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
  */
 export class Client {
     public readonly assessment: assessment.ServiceClient
+    public readonly auth: auth.ServiceClient
+    public readonly feedback: feedback.ServiceClient
     public readonly guidance: guidance.ServiceClient
     public readonly health_record: health_record.ServiceClient
     public readonly report: report.ServiceClient
@@ -52,6 +54,8 @@ export class Client {
         this.options = options ?? {}
         const base = new BaseClient(this.target, this.options)
         this.assessment = new assessment.ServiceClient(base)
+        this.auth = new auth.ServiceClient(base)
+        this.feedback = new feedback.ServiceClient(base)
         this.guidance = new guidance.ServiceClient(base)
         this.health_record = new health_record.ServiceClient(base)
         this.report = new report.ServiceClient(base)
@@ -116,9 +120,6 @@ export namespace assessment {
             this.list = this.list.bind(this)
         }
 
-        /**
-         * Creates a new health assessment and calculates frailty score.
-         */
         public async create(params: RequestType<typeof api_assessment_create_create>): Promise<ResponseType<typeof api_assessment_create_create>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/assessments`, {method: "POST", body: JSON.stringify(params)})
@@ -145,8 +146,110 @@ export namespace assessment {
     }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { login as api_auth_login_login } from "~backend/auth/login";
+import { logout as api_auth_logout_logout } from "~backend/auth/logout";
+import { me as api_auth_me_me } from "~backend/auth/me";
+import {
+    requestPasswordReset as api_auth_password_reset_requestPasswordReset,
+    resetPassword as api_auth_password_reset_resetPassword
+} from "~backend/auth/password_reset";
+import { register as api_auth_register_register } from "~backend/auth/register";
+import {
+    resendVerification as api_auth_verify_email_resendVerification,
+    verifyEmail as api_auth_verify_email_verifyEmail
+} from "~backend/auth/verify_email";
 
 export namespace auth {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.login = this.login.bind(this)
+            this.logout = this.logout.bind(this)
+            this.me = this.me.bind(this)
+            this.register = this.register.bind(this)
+            this.requestPasswordReset = this.requestPasswordReset.bind(this)
+            this.resendVerification = this.resendVerification.bind(this)
+            this.resetPassword = this.resetPassword.bind(this)
+            this.verifyEmail = this.verifyEmail.bind(this)
+        }
+
+        public async login(params: RequestType<typeof api_auth_login_login>): Promise<ResponseType<typeof api_auth_login_login>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/login`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_login_login>
+        }
+
+        public async logout(): Promise<ResponseType<typeof api_auth_logout_logout>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/logout`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_logout_logout>
+        }
+
+        public async me(): Promise<ResponseType<typeof api_auth_me_me>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/me`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_me_me>
+        }
+
+        public async register(params: RequestType<typeof api_auth_register_register>): Promise<ResponseType<typeof api_auth_register_register>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/register`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_register_register>
+        }
+
+        public async requestPasswordReset(params: RequestType<typeof api_auth_password_reset_requestPasswordReset>): Promise<ResponseType<typeof api_auth_password_reset_requestPasswordReset>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/request-password-reset`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_password_reset_requestPasswordReset>
+        }
+
+        public async resendVerification(params: RequestType<typeof api_auth_verify_email_resendVerification>): Promise<ResponseType<typeof api_auth_verify_email_resendVerification>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/resend-verification`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_verify_email_resendVerification>
+        }
+
+        public async resetPassword(params: RequestType<typeof api_auth_password_reset_resetPassword>): Promise<ResponseType<typeof api_auth_password_reset_resetPassword>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/reset-password`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_password_reset_resetPassword>
+        }
+
+        public async verifyEmail(params: RequestType<typeof api_auth_verify_email_verifyEmail>): Promise<ResponseType<typeof api_auth_verify_email_verifyEmail>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/auth/verify-email`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_auth_verify_email_verifyEmail>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import { submit as api_feedback_submit_submit } from "~backend/feedback/submit";
+
+export namespace feedback {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.submit = this.submit.bind(this)
+        }
+
+        public async submit(params: RequestType<typeof api_feedback_submit_submit>): Promise<ResponseType<typeof api_feedback_submit_submit>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/feedback`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_feedback_submit_submit>
+        }
+    }
 }
 
 /**
@@ -294,9 +397,6 @@ export namespace report {
             this.list = this.list.bind(this)
         }
 
-        /**
-         * Generates a personalized frailty assessment report.
-         */
         public async generate(params: RequestType<typeof api_report_generate_generate>): Promise<ResponseType<typeof api_report_generate_generate>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/reports/generate`, {method: "POST", body: JSON.stringify(params)})

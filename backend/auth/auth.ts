@@ -1,10 +1,16 @@
-import { createClerkClient, verifyToken } from "@clerk/backend";
 import { Header, Cookie, APIError, Gateway } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";
 import { secret } from "encore.dev/config";
+import * as jwt from "jsonwebtoken";
+import db from "../db";
 
-const clerkSecretKey = secret("ClerkSecretKey");
-const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
+const jwtSecret = secret("JWTSecret");
+
+interface JWTPayload {
+  userID: string;
+  email: string;
+  role: string;
+}
 
 interface AuthParams {
   authorization?: Header<"Authorization">;
@@ -13,8 +19,8 @@ interface AuthParams {
 
 export interface AuthData {
   userID: string;
-  imageUrl: string;
-  email: string | null;
+  email: string;
+  role: string;
 }
 
 export const auth = authHandler<AuthParams, AuthData>(async (data) => {
@@ -24,15 +30,31 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
   }
 
   try {
-    const verifiedToken = await verifyToken(token, {
-      secretKey: clerkSecretKey(),
-    });
+    const decoded = jwt.verify(token, jwtSecret()) as JWTPayload;
 
-    const user = await clerkClient.users.getUser(verifiedToken.sub);
+    const user = await db.queryRow<{
+      id: number;
+      email: string;
+      role: string;
+      email_verified: boolean;
+    }>`
+      SELECT id, email, role, email_verified
+      FROM user_accounts
+      WHERE id = ${parseInt(decoded.userID)}
+    `;
+
+    if (!user) {
+      throw APIError.unauthenticated("user not found");
+    }
+
+    if (!user.email_verified) {
+      throw APIError.unauthenticated("email not verified");
+    }
+
     return {
-      userID: user.id,
-      imageUrl: user.imageUrl,
-      email: user.emailAddresses[0]?.emailAddress ?? null,
+      userID: decoded.userID,
+      email: user.email,
+      role: user.role,
     };
   } catch (err) {
     throw APIError.unauthenticated("invalid token", err as Error);

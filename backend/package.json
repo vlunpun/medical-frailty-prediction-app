@@ -8,8 +8,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@clerk/backend": "^1.27.0",
-    "encore.dev": "^1.51.5"
+    "encore.dev": "^1.51.5",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
